@@ -145,7 +145,7 @@ At first start, Indexer will store transactions starting from the block you set.
 Sample run string:
 
 ```
-DB_NAME=index ETH_URL=http://127.0.0.1:8545 START_BLOCK=14600000 LOG_FILE=/home/api_user/ETH-transactions-storage/ethsync.log python3 /home/api_user/ETH-transactions-storage/ethsync.py
+DB_NAME=index DB_USER=api_user DB_PASS=**** ETH_URL=http://127.0.0.1:8545 START_BLOCK=14600000 LOG_FILE=/home/api_user/ETH-transactions-storage/ethsync.log python3 /home/api_user/ETH-transactions-storage/ethsync.py
 ```
 
 We recommend to run Indexer script `ethsync.py` as a background service to make sure it will be restarted in case of failure. See `ethsync.service` as an example. Copy it to /lib/systemd/system/ethsync.service, update according to your settings, then register a service:
