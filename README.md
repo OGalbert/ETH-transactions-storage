@@ -107,7 +107,7 @@ CREATE DATABASE index;
 Add tables into `index` using SQL script `create_table.sql`:
 
 ```
-psql -f create_table.sql index
+psql -U api_index -f create_table.sql index
 ```
 
 Note, for case insensitive comparisons we use `citex` data type instead of `text`.
