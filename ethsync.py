@@ -108,18 +108,19 @@ def insertTxsFromBlock(block):
         txhash = trans["hash"].hex()
         value = trans["value"]
         inputinfo = trans["input"]
-        # Check if transaction is a contract transfer
-        if value == 0 and not inputinfo.startswith("0xa9059cbb"):
-            continue
-        fr = trans["from"]
-        to = trans["to"]
-        gasprice = trans["gasPrice"]
-        gas = transReceipt["gasUsed"]
+
         contract_to = ""
         contract_value = ""
         # Check if transaction is a contract transfer
         if inputinfo.startswith("0xa9059cbb"):
             contract_to = inputinfo[10:-64]
+            # typical output if there is a contract involved:
+            # 0000000000000000000000009f066b6ddc399dcbc7c596ad7d97b79247c85afb
+            # We transform it by -1) taking the last 40 characters
+            # -2) adding 0x to the front
+            # Resulting hash should match the standard address (or contract) hash format
+            # 
+            contract_to = f'0x{contract_to[-40:]}'
             contract_value = inputinfo[74:]
         # Correct contract transfer transaction represents '0x' + 4 bytes 'a9059cbb' + 32 bytes (64 chars) for contract address and 32 bytes for its value
         # Some buggy txs can break up Indexer, so we'll filter it
@@ -132,6 +133,24 @@ def insertTxsFromBlock(block):
             )
             contract_to = ""
             contract_value = ""
+
+        # Check if transaction is a contract transfer
+        if value == 0 and not inputinfo.startswith("0xa9059cbb"):
+            continue
+        try:
+            fr = trans["from"]
+        except:
+            logger.error(
+                f"Cannot get 'from' item from transaction. txhash : ({txhash})"
+            )
+        try:
+            to = trans["to"]
+        except:
+            logger.error(f"Cannot get 'to' item from transaction.  txhash :({txhash})")
+
+        gasprice = trans["gasPrice"]
+        gas = transReceipt["gasUsed"]
+
         cur.execute(
             "INSERT INTO public.ethtxs(time, txfrom, txto, value, gas, gasprice, block, txhash, contract_to, contract_value, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (

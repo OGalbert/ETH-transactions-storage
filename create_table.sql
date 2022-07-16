@@ -12,7 +12,8 @@ CREATE TABLE public.ethtxs
     value numeric,
     contract_to citext COLLATE pg_catalog."default",
     contract_value citext COLLATE pg_catalog."default",
-    status boolean
+    status boolean,
+    UNIQUE(txhash)
 );
 
 CREATE TABLE public.aval
