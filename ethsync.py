@@ -113,26 +113,28 @@ def insertTxsFromBlock(block):
         contract_value = ""
         # Check if transaction is a contract transfer
         if inputinfo.startswith("0xa9059cbb"):
-            contract_to = inputinfo[10:-64]
+            # contract_to = inputinfo[10:-64]
             # typical output if there is a contract involved:
             # 0000000000000000000000009f066b6ddc399dcbc7c596ad7d97b79247c85afb
             # We transform it by -1) taking the last 40 characters
             # -2) adding 0x to the front
             # Resulting hash should match the standard address (or contract) hash format
-            # 
-            contract_to = f'0x{contract_to[-40:]}'
-            contract_value = inputinfo[74:]
+            #
+            # contract_to = f'0x{contract_to[-40:]}'
+            # contract_value = inputinfo[74:]
+            contract_to = f"0x{inputinfo[-104 :-64]}"
+            contract_value = inputinfo[-64:]
         # Correct contract transfer transaction represents '0x' + 4 bytes 'a9059cbb' + 32 bytes (64 chars) for contract address and 32 bytes for its value
         # Some buggy txs can break up Indexer, so we'll filter it
-        if len(contract_to) > 128:
-            logger.info(
-                "Skipping "
-                + str(txhash)
-                + " tx. Incorrect contract_to length: "
-                + str(len(contract_to))
-            )
-            contract_to = ""
-            contract_value = ""
+        # if len(contract_to) > 128:
+        #     logger.info(
+        #         "Skipping "
+        #         + str(txhash)
+        #         + " tx. Incorrect contract_to length: "
+        #         + str(len(contract_to))
+        #     )
+        #     contract_to = ""
+        #     contract_value = ""
 
         # Check if transaction is a contract transfer
         if value == 0 and not inputinfo.startswith("0xa9059cbb"):
