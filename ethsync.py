@@ -25,6 +25,7 @@ userpass = environ.get("DB_PASS")
 
 startBlock = environ.get("START_BLOCK") or "1"
 confirmationBlocks = environ.get("CONFIRMATIONS_BLOCK") or "0"
+reorg_blocks = environ.get("CONFIRMATIONS_BLOCK") or 10
 nodeUrl = environ.get("ETH_URL")
 pollingPeriod = environ.get("PERIOD") or "20"
 logFile = environ.get("LOG_FILE")
@@ -124,19 +125,11 @@ def insertTxsFromBlock(block):
             # contract_value = inputinfo[74:]
             contract_to = f"0x{inputinfo[-104 :-64]}"
             contract_value = inputinfo[-64:]
-        # Correct contract transfer transaction represents '0x' + 4 bytes 'a9059cbb' + 32 bytes (64 chars) for contract address and 32 bytes for its value
-        # Some buggy txs can break up Indexer, so we'll filter it
-        # if len(contract_to) > 128:
-        #     logger.info(
-        #         "Skipping "
-        #         + str(txhash)
-        #         + " tx. Incorrect contract_to length: "
-        #         + str(len(contract_to))
-        #     )
-        #     contract_to = ""
-        #     contract_value = ""
+            if inputinfo[-128:-104] != "000000000000000000000000":
+                logger.warning(
+                    f"Address input part doesnt have 24 leading zeros: {inputinfo[-128 :-104]}. Txhash: {txhash}"
+                )
 
-        # Check if transaction is a contract transfer
         if value == 0 and not inputinfo.startswith("0xa9059cbb"):
             continue
         try:
@@ -170,7 +163,14 @@ def insertTxsFromBlock(block):
             ),
         )
 
+def delete_last_blocks_from_db(begin_block, end_block):
+    try:
+        cur.execute("DELETE from ethtxs CASCADE WHERE block > %s AND block <= %s", (begin_block, end_block))
+        logger.info(f'Deleted blocks {begin_block+1} to {end_block}')
+    except:
+        logger.error(f'Failed to delete blocks {begin_block+1} to {end_block}')
 
+latest_hash = ''
 # Fetch all of new (not in index) Ethereum blocks and add transactions to index
 while True:
     try:
@@ -197,8 +197,17 @@ while True:
         + str(endblock)
     )
 
-    for blockHeight in range(maxblockindb + 1, endblock):
+
+
+    for blockHeight in range(maxblockindb + 1, endblock+1):
         block = web3.eth.getBlock(blockHeight, True)
+        if blockHeight == endblock:
+            if latest_hash != block['parentHash'].hex():
+                # then we have to delete the lastest x blocks
+                logger.warning(f'Reorganisation!: Lastest hash is not the same as the newest ParentHash')
+                delete_last_blocks_from_db(blockHeight-1-reorg_blocks, blockHeight-1)
+                continue
+
         if len(block.transactions) > 0:
             insertTxsFromBlock(block)
             logger.info(
@@ -210,6 +219,7 @@ while True:
             )
         else:
             logger.info("Block " + str(blockHeight) + " does not contain transactions")
+        latest_hash = block['hash'].hex()
     cur.close()
     conn.close()
     time.sleep(int(pollingPeriod))
